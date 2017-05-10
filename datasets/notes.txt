@@ -1,0 +1,8 @@
+For the cifar dataset, the cifar10pca are the features and cifar10labels are
+the labels.  For cifar dataset, just use the first feature of the dataset. The labels are 7
+and 8.
+
+For skin dataset, the last column is the labels which are either 1 or 2
+I thought we had done more processing on the dataset files, but instead we did
+it in the algorithm so don't forget to scale and shuffle the datasets!
+
