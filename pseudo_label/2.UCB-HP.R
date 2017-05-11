@@ -100,7 +100,7 @@ for (rep in c(1:10)){
             RET <- rbind(RET,c(i,cum_label, h_It,min(UCB),cum_reg))
         }
     }
-    filename <- paste0('ucbhp_rep',rep,'.csv')
+    filename <- paste0('ucbhp_rep',rep,'_cost',req_cost,'.csv')
     write.table(RET,filename, sep = ',',col = FALSE,row.names = FALSE)
 
 }
