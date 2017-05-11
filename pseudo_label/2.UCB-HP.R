@@ -1,17 +1,17 @@
 source('0.init.R')
 
-req_cost <- 0.4 # request cost, c in the paper
+req_cost <- 0.5 # request cost, c
 beta <- 3   # parameter in slack term
 n_warmup <- 10    # warmup rounds, keep requesting label
 
 #-------------------- 
 # Load data
 #-------------------- 
-source('../datasets/skin.R')
+source('1.data.skin.R')
 
 #-------------------- 
 # Input to algorithm
-# iven X, y, all_h, all_thre
+# X, y, all_h, all_thre
 #-------------------- 
 nT <- nrow(X)
 r_per_h <- length(all_thre)
@@ -44,8 +44,7 @@ for (rep in c(1:10)){
 
     # start active learning
     RET <- matrix(c(0),ncol = 5) # book keeping
-    for (i in c((1+n_warmup) : nrow(X))){
-#    for (i in c((1+n_warmup) : 1000)){
+    for (i in c((1+n_warmup) : nT)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
 
@@ -72,18 +71,14 @@ for (rep in c(1:10)){
         h_It <- h_idx[It]
 
         if (any(non_req_t)){ # some pair do not request
-            if (UCB[It] < req_cost){
-                not_request <- TRUE
-            } else {
-                not_request  <- FALSE
-            }
-        } else {# all want to request
+            not_request <- ifelse(UCB[It] < req_cost,TRUE,FALSE)
+        } else {# all pairs request
             not_request <- FALSE
         }
 
-        if(not_request){
+        if(not_request){ # not request
             cum_reg <- cum_reg + loss_func(pred[It],y_t)
-        } else{ # request label
+        } else{ # request 
             cum_reg <- cum_reg + req_cost
             cum_label <- cum_label + 1
             if (y_t != pse_y_t){ # correct the bias from pseudo label
@@ -92,11 +87,13 @@ for (rep in c(1:10)){
             }
         }
 
+
         if (i %% 50 ==0){
 #            cat('num of rounds:',i,
 #                ', num of labels:',cum_label,
 #                ', min UCB:', min(UCB),'\n')
 
+            if (length(h_It)==0){h_It <- 0; }
             RET <- rbind(RET,c(i,cum_label, h_It,min(UCB),cum_reg))
         }
     }
@@ -105,31 +102,4 @@ for (rep in c(1:10)){
 
 }
 
-# best expert inhindside
-# have to make sure that best inhindside has \hat \mu < req_cost
-min_err <- c()
-for (req_cost in seq(0,1,0.1)){
-    cum_loss_uncond <- matrix(0,nrow = nh, ncol = r_per_h)
-    for (i in seq_len(nT)){
-        x_t <- X[i,]
-        y_t <- y[i]
-        pred_t <- all_h %*% t(t(x_t))
-        pred_loss_t <- loss_func(pred_t, y_t) # prediction loss
-
-        curr_loss_uncond <- apply(array(all_thre),1, function(x){
-                                      r <- x - abs(pred_t)
-                                      ifelse(r>0, req_cost, pred_loss_t)})
-        cum_loss_uncond <- cum_loss_uncond + curr_loss_uncond
-    }
-
-    best_pair  <- which.min(cum_loss_uncond)
-    best_h <- best_pair %% nh
-    best_r <- 1+ floor(best_pair / nh)
-    min_err <- c(min_err, cum_loss_uncond[best_pair]/ nT)
-}
-
-# for logistic loss, req_cost has to be >= 0.5 to have 
-# min(\hat \mu) <= req_cost 
-# [1] 0.09303666 0.17965895 0.26628125 0.35290355 0.43333897 0.47872352
-# [7] 0.52410806 0.56261959 0.56906095 0.57550231 0.58194367
 

@@ -1,9 +1,9 @@
 source('0.init.R')
-source('../datasets/skin.R')
+source('1.data.skin.R')
+
 x_range <- max(max(X), -min(X))
 M <- log(1+exp(x_range))
-req_cost <- 0.4 # request cost, c in the paper
-
+req_cost <- 0.5 # request cost, c in the paper
 
 #--------------------
 # input
@@ -46,14 +46,14 @@ for (rep in  c(1:10)){
         }
 
         if (i %% 50 ==0){
-            cat('num of rounds:',i,
-                ', num of labels:',cum_label,'\n')
+        #    cat('num of rounds:',i,
+        #        ', num of labels:',cum_label,'\n')
 
             RET <- rbind(RET,c(i,cum_label,It, cum_reg))
         }
     }
 
-    filename <- paste0('iwal_rep',rep,'.csv')
+    filename <- paste0('iwal_rep',rep,'_cost',req_cost,'.csv')
     write.table(RET,filename, sep = ',',col = FALSE,row.names = FALSE)
     
 }

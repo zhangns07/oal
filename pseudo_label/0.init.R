@@ -1,5 +1,5 @@
 #--------------------
-# create synthetic data
+# synthetic data
 #--------------------
 gen_x <- function # generate feature in R^d.
 (xd,  # feature dimension
