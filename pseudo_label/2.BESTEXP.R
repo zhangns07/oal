@@ -27,7 +27,7 @@ for (rep in c(1:10)){
     for (i in seq_len(nT)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
-        pred_t <- all_h %*% t(t(x_t))
+        pred_t <- all_h %*% x_t
         pred_loss_t <- loss_func(pred_t, y_t) # prediction loss
 
         curr_loss_uncond <- apply(array(all_thre),1, function(x){

@@ -30,7 +30,7 @@ for (rep in c(1:10)){
     for (i in seq_len(n_warmup)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
-        pred_t <- all_h %*% t(t(x_t)) # prediction
+        pred_t <- all_h %*% x_t # prediction
         pred_loss_t <- loss_func(pred_t, y_t) # prediction loss
 
         curr_ret <- cond_loss_allpairs(all_thre, pred_t, pred_loss_t)
@@ -48,7 +48,7 @@ for (rep in c(1:10)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
 
-        pred_t <- all_h %*% t(t(x_t))
+        pred_t <- all_h %*% x_t
         pred_loss_t <- loss_func(pred_t, y_t) # prediction loss
 
         # create pseudo label
@@ -61,14 +61,16 @@ for (rep in c(1:10)){
 
         # update UCB with pseudo label
         curr_ret <- cond_loss_allpairs(all_thre, pred_t, pred_loss_pse_t)
-        cum_loss <- cum_loss + curr_ret[1:nh,]
-        cum_obs <- cum_obs + curr_ret[(1:nh)+nh,]
-        UCB <- (cum_loss/cum_obs + sqrt(2*beta*log(i)/cum_obs))[non_req_t]
+        cum_loss_tmp <- cum_loss + curr_ret[1:nh,]
+        cum_obs_tmp <- cum_obs + curr_ret[(1:nh)+nh,]
+        UCB <- (cum_loss_tmp/cum_obs_tmp + sqrt(2*beta*log(i)/cum_obs_tmp))[non_req_t]
 
         # choose expert for this round
         h_idx <- (matrix(rep(seq_along(pred_t),r_per_h),ncol = r_per_h))[non_req_t]
+        r_idx <- (matrix(rep(seq_along(all_thre),each = nh),ncol = r_per_h))[non_req_t]
         It <- which.min(UCB)
-        h_It <- h_idx[It]
+        h_It <- h_idx[It] 
+        r_It <- r_idx[It]
 
         if (any(non_req_t)){ # some pair do not request
             not_request <- ifelse(UCB[It] < req_cost,TRUE,FALSE)
@@ -77,14 +79,15 @@ for (rep in c(1:10)){
         }
 
         if(not_request){ # not request
-            cum_reg <- cum_reg + loss_func(pred[It],y_t)
+            cum_reg <- cum_reg + pred_loss_t[h_It]
+            cum_loss[h_It,r_It] <- cum_loss[h_It,r_It] + pred_loss_pse_t[h_It] # update the chosen expert
+            cum_obs[h_It,r_It] <- cum_obs[h_It,r_It] + 1 # update the chosen expert
         } else{ # request 
             cum_reg <- cum_reg + req_cost
             cum_label <- cum_label + 1
-            if (y_t != pse_y_t){ # correct the bias from pseudo label
-                true_curr_ret <- cond_loss_allpairs(all_thre, pred_t, pred_loss_t)
-                cum_loss <- cum_loss - curr_ret[1:nh,] + true_curr_ret[1:nh,]
-            }
+            true_curr_ret <- cond_loss_allpairs(all_thre, pred_t, pred_loss_t)
+            cum_loss <- cum_loss  + true_curr_ret[1:nh,]
+            cum_obs <- cum_obs + true_curr_ret[(1:nh)+nh,]
         }
 
 

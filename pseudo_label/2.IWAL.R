@@ -25,7 +25,7 @@ for (rep in  c(1:10)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
 
-        pred_t <- all_h %*% t(t(x_t))
+        pred_t <- all_h %*% x_t
         loss0 <- loss_func(pred_t,-1, 'logistic') / M
         loss1 <- loss_func(pred_t,1,'logistic') / M
 
