@@ -63,7 +63,8 @@ for (rep in c(1:10)){
         curr_ret <- cond_loss_allpairs(all_thre, pred_t, pred_loss_pse_t)
         cum_loss_tmp <- cum_loss + curr_ret[1:nh,]
         cum_obs_tmp <- cum_obs + curr_ret[(1:nh)+nh,]
-        UCB <- (cum_loss_tmp/cum_obs_tmp + sqrt(2*beta*log(i)/cum_obs_tmp))[non_req_t]
+#        UCB <- (cum_loss_tmp/cum_obs_tmp + sqrt(2*beta*log(i)/cum_obs_tmp))[non_req_t]
+        UCB <- (cum_loss_tmp/cum_obs_tmp - sqrt(2*beta*log(i)/cum_obs_tmp))[non_req_t]
 
         # choose expert for this round
         h_idx <- (matrix(rep(seq_along(pred_t),r_per_h),ncol = r_per_h))[non_req_t]
