@@ -2,7 +2,7 @@ source('0.init.R')
 source('1.data.skin.R')
 
 x_range <- max(max(X), -min(X))
-M <- log(1+exp(x_range))
+M <- log(1+exp(sqrt(3)*x_range)) # upper bound of logistic loss
 req_cost <- 0.5 # request cost, c in the paper
 
 #--------------------
@@ -26,8 +26,8 @@ for (rep in  c(1:10)){
         y_t <- y[shuffle[i]]
 
         pred_t <- all_h %*% x_t
-        loss0 <- loss_func(pred_t,-1, 'logistic') / M
-        loss1 <- loss_func(pred_t,1,'logistic') / M
+        loss0 <- (loss_func(pred_t,-1, 'logistic'))[Ht] / M
+        loss1 <- (loss_func(pred_t,1,'logistic'))[Ht] / M
 
         p_t <- max_dis(loss0,loss1)
         Q_t <- as.numeric(runif(1) < p_t)
