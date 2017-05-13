@@ -1,9 +1,11 @@
 # data
 skin <- read.table('skin.txt')
 y <- skin[,4]
-y <- 3 - 2*y  # depends on which direction of hyperplane gives smaller error
+y <- -3 + 2*y  # depends on which direction of hyperplane gives smaller error
 X_raw <- skin[,-4]
-X <- scale(X_raw)
+# X <- scale(X_raw) 
+maxX <- max(X_raw)
+X <- X_raw / maxX
 
 # experts
 l <- 5
