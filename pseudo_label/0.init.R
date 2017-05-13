@@ -69,13 +69,14 @@ max_dis <- function # return maximum disagreement,
  loss1# a vector of predictions error, for y = 1
  ){
     if(length(loss0) != length(loss1)){stop}
+    if (length(loss0)==1){return (0)}
     nh <- length(loss0)
 
     glb_max <- 0
     for (i in seq_len(nh-1)){
         j <- c((i+1):nh)
-        loc_max <- max(pmax(loss0[i] - loss0[j], loss1[i]-loss1[j]),
-                       pmax(loss0[j] - loss0[i], loss1[j]-loss1[i]))
+        loc_max <- max(max(loss0[i] - loss0[j], loss1[i]-loss1[j]),
+                       max(loss0[j] - loss0[i], loss1[j]-loss1[i]))
         glb_max <- max(loc_max, glb_max)
 
     }
