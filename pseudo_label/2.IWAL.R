@@ -3,7 +3,7 @@ source('1.data.skin.R')
 
 x_range <- max(max(X), -min(X))
 M <- log(1+exp(sqrt(3)*x_range)) # upper bound of logistic loss
-req_cost <- 0.5 # request cost, c in the paper
+req_cost <- 0.55 # request cost, c in the paper
 
 #--------------------
 # input
@@ -11,21 +11,23 @@ req_cost <- 0.5 # request cost, c in the paper
 # all_h, max_dis
 #--------------------
 nT <- nrow(X)
+nT = 100000
 nh <- nrow(all_h)
 
-for (rep in  c(1:10)){
-    set.seed(rep); shuffle <- sample(seq_len(nT),replace = FALSE)
+for (rep in  c(3)){
+    set.seed(rep); shuffle <- sample(nrow(X),nT,replace = FALSE)
     cum_loss <- rep(0,nh)
     Ht <- rep(TRUE,nh)
     cum_label <- 0
     cum_reg <- 0
+    cum_loss_alg_0= 0 ## cumulative 0/1 error of the best expert per round
 
-    RET <- matrix(c(0),ncol = 4) # book keeping
+    RET_iwal <- matrix(c(0),ncol = 6) # book keeping
     for (i in seq_len(nT)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
 
-        pred_t <- all_h %*% x_t
+        pred_t <- all_h %*% t(x_t)
         loss0 <- (loss_func(pred_t,-1, 'logistic'))[Ht] / M
         loss1 <- (loss_func(pred_t,1,'logistic'))[Ht] / M
 
@@ -45,15 +47,20 @@ for (rep in  c(1:10)){
             cum_reg <- cum_reg + loss_func(pred_t[It], y_t)
         }
 
-        if (i %% 50 ==0){
-        #    cat('num of rounds:',i,
-        #        ', num of labels:',cum_label,'\n')
+        It <- (seq_len(nh)[Ht])[which.min(cum_loss[Ht])] # best expert for this round
+        cum_loss_alg_0<- cum_loss_alg_0+ loss_func(pred_t[It],y_t,'misclass')
 
-            RET <- rbind(RET,c(i,cum_label,It, cum_reg))
+        if (i %% 1000 ==0){
+            cat('num of rounds:',i,
+                ', num of labels:',cum_label,
+                ', expert:',It,
+                ', loss/i:', cum_loss_alg_0/i,'\n')
+
+            RET_iwal <- rbind(RET_iwal,c(i,cum_label,It, p_t, cum_reg,cum_loss_alg_0))
         }
     }
 
-    filename <- paste0('iwal_rep',rep,'_cost',req_cost,'.csv')
-    write.table(RET,filename, sep = ',',col = FALSE,row.names = FALSE)
+    filename <- paste0('iwal_rep',rep,'.csv')
+    write.table(RET_iwal,filename, sep = ',',col = FALSE,row.names = FALSE)
     
 }
