@@ -83,4 +83,35 @@ max_dis <- function # return maximum disagreement,
     return (glb_max)
 }
 
+#---------
+# For UCB-P
+loss_allpairs <- function
+(all_thre, # a vector of thresholds, length n
+ pred, # a vector of expert predictions, length m
+ pred_loss, # a vector of expert predictions loss, length m
+ req_cost, # request cost
+ request # whether the expert request at that round, TRUE or FALSE
+ ){
+    # return a 2m x n matrix
+    # first m x n is loss, second m x n is obs
+
+    if(request){
+        # requester: loss c, obs 1
+        # non-requester: loss pred_loss, obs 1
+        curr_loss <- apply(array(all_thre),1, function(x){
+                               r <- x - abs(pred)
+                               c(ifelse(r>0, req_cost, pred_loss), # loss
+                                 1) }) # obs
+    } else{
+        # requester: loss c, obs 1
+        # non-requester: loss 0, obs 0
+        curr_loss <- apply(array(all_thre),1, function(x){
+                               r <- x - abs(pred)
+                               c(ifelse(r>0, req_cost, 0), # loss
+                                 as.numeric(r>0)) }) # obs
+
+    }
+    return (curr_loss)
+}
+
 

@@ -14,9 +14,9 @@ polar_base <- seq(0,pi,length.out = l)
 polar <- expand.grid(polar_base, polar_base)
 
 
-all_h  <- apply(polar,1,function(x){
+all_h_org  <- apply(polar,1,function(x){ # unscaled h
                       c(sin(x[1])*cos(x[2]), sin(x[1])*sin(x[2]), cos(x[1])) })
-all_h_scaled <- matrix(apply(array(scales),1,function(x){all_h * x}),ncol = 3, byrow = TRUE)
+all_h <- matrix(apply(array(scales),1,function(x){all_h_org * x}),ncol = 3, byrow = TRUE)
 
 all_thre <- unique(c(seq(0.000,0.1,0.01),seq(0.1, 0.3,0.1)))
 
