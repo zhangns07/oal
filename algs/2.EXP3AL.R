@@ -16,14 +16,16 @@ nT = 100000
 r_per_h <- length(all_thre)
 nh <- nrow(all_h)
 
-u <- 1/(r_per_h * nh) #uniform distribution over experts
-qt <- rep(u, nh * r_per_h)
-
 
 for (rep in c(1:10)){
+
     set.seed(rep); shuffle <- sample(nrow(X),nT,replace = FALSE)
     cum_label <- 0 # cumulative number of label requests
     cum_reg <- 0
+    cum_loss_alg_0 <- 0
+    u <- 1/(r_per_h * nh) #uniform distribution over experts
+    qt <- rep(u, nh * r_per_h)
+
     RET <- matrix(c(0),ncol = 5) # book keeping
 
     for(i in seq_len(nT)){
@@ -37,6 +39,7 @@ for (rep in c(1:10)){
         It <- which.max(rmultinom(1, size = 1, prob = pt))
         h_It <- It %% nh
         r_It <- ceiling(It / nh)
+        if (h_It ==0){h_It <- nh}
 
         # update regret
         if (all_thre[r_It] - abs(pred_t[h_It]) >0){ # request 
@@ -57,7 +60,7 @@ for (rep in c(1:10)){
         qt <- qt * exp(-eta * lt_hat )
         qt <- qt / sum(qt)
 
-        cum_loss_alg_0<- cum_loss_alg_0+ loss_func(pred_t[h_It],y_t,'misclass')
+        cum_loss_alg_0<- cum_loss_alg_0 + loss_func(pred_t[h_It],y_t,'misclass')
         if (i %% 1000 ==0){
             cat('i:',i, 
                 ', num of labels:',cum_label,
