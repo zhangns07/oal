@@ -101,7 +101,7 @@ loss_allpairs <- function
         curr_loss <- apply(array(all_thre),1, function(x){
                                r <- x - abs(pred)
                                c(ifelse(r>0, req_cost, pred_loss), # loss
-                                 1) }) # obs
+                                 rep(1,length(pred))) }) # obs
     } else{
         # requester: loss c, obs 1
         # non-requester: loss 0, obs 0

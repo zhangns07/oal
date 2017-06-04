@@ -1,7 +1,6 @@
 source('0.init.R')
 
-req_cost <- 0.9 # request cost, this is just a starting point.
-## Every 1000 rounds the req_cost will be set to the min(UCB) from the previous round
+req_cost <- 0.55
 
 beta <- 3   # parameter in slack term
 n_warmup <- 10    # warmup rounds, keep requesting label
@@ -42,7 +41,6 @@ for (rep in c(1:10)){
         curr_ret <- loss_allpairs(all_thre, pred_t, pred_loss_t, req_cost, request = TRUE)
         cum_loss <- cum_loss + curr_ret[1:nh,]
         cum_obs <- cum_obs + curr_ret[(1:nh)+nh,]
-
     }
 
     cum_reg <- req_cost * n_warmup
@@ -58,7 +56,7 @@ for (rep in c(1:10)){
         pred_loss_t <- loss_func(pred_t, y_t) # prediction loss
 
         # choose expert for this round
-        UCB <- (cum_loss/cum_obs - sqrt(2*beta*log(i)/cum_obs))
+        UCB <- (cum_loss/cum_obs + sqrt(2*beta*log(i)/cum_obs))
         It <- which.min(UCB)
         h_idx <- (matrix(rep(seq_along(pred_t),r_per_h),ncol = r_per_h))
         r_idx <- (matrix(rep(seq_along(all_thre),each = nh),ncol = r_per_h))
@@ -111,3 +109,5 @@ for (rep in c(1:10)){
 }
 
 
+# observations:
+# 1, pseudo label performs pooly. Need to use a different method.
