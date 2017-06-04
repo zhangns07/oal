@@ -23,6 +23,9 @@ qt <- rep(u, nh * r_per_h)
 for (rep in c(1:10)){
     set.seed(rep); shuffle <- sample(nrow(X),nT,replace = FALSE)
     cum_label <- 0 # cumulative number of label requests
+    cum_reg <- 0
+    RET <- matrix(c(0),ncol = 5) # book keeping
+
     for(i in seq_len(nT)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
@@ -53,5 +56,21 @@ for (rep in c(1:10)){
         lt_hat <- curr_ret[1:nh,] / Pt
         qt <- qt * exp(-eta * lt_hat )
         qt <- qt / sum(qt)
+
+        cum_loss_alg_0<- cum_loss_alg_0+ loss_func(pred_t[h_It],y_t,'misclass')
+        if (i %% 1000 ==0){
+            cat('i:',i, 
+                ', num of labels:',cum_label,
+                ', expert:',h_It,
+                ', loss/i:', cum_loss_alg_0/i,
+                '\n')
+
+            if (length(h_It)==0){h_It <- 0; }
+            RET <- rbind(RET,c(i,cum_label, h_It,cum_reg,cum_loss_alg_0))
+        }
     }
+
+    filename <- paste0('exp3al_rep',rep,'.csv')
+    write.table(RET,filename, sep = ',',col = FALSE,row.names = FALSE)
+
 }
