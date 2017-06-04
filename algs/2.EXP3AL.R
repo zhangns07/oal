@@ -5,6 +5,7 @@ source('1.data.skin.R')
 req_cost <- 0.55 # request cost, c in the paper
 gamma <- 0.1
 eta <- 0.1
+all_thre <- c(all_thre, 1e5) # thus there willl be always requester
 
 #--------------------
 # input
@@ -53,7 +54,7 @@ for (rep in c(1:10)){
 
         # update weights
         req_t <- apply(array(all_thre),1, function(x){(x - abs(pred_t))>0}) # requester
-        req_t_wts <- sum(pt[req_t]) #requesters weights
+        req_t_wts <- pmax(u,sum(pt[req_t])) #requesters weights, to avoid edge cases make it at least u
         Pt <- ifelse(req_t, 1, req_t_wts) 
 
         lt_hat <- curr_ret[1:nh,] / Pt
