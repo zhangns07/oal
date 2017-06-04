@@ -18,6 +18,7 @@ nT <- nrow(X)
 nT=100000
 r_per_h <- length(all_thre)
 nh <- nrow(all_h)
+perc_eta <- 0.1 # learning rate for perceptron algorithm
 
 for (rep in c(1:10)){
 
@@ -31,6 +32,8 @@ for (rep in c(1:10)){
     cum_label <- 0 # cumulative number of label requests
     cum_random = 0; ## number of times that all experts are non-requesting
 
+    wt <- rep(0,nh)
+
     # warmup
     for (i in seq_len(n_warmup)){
         x_t <- X[shuffle[i],]
@@ -41,6 +44,12 @@ for (rep in c(1:10)){
         curr_ret <- loss_allpairs(all_thre, pred_t, pred_loss_t, req_cost, request = TRUE)
         cum_loss <- cum_loss + curr_ret[1:nh,]
         cum_obs <- cum_obs + curr_ret[(1:nh)+nh,]
+
+        # perceptron
+        pse_y_t <- ifelse(sum(wt * pred_t)>0,1,-1)
+        if (y_t * pse_y_t < 0){ # wrong prediction
+            wt  <- wt + y_t * pred_t * perc_eta
+        }
     }
 
     cum_reg <- req_cost * n_warmup
@@ -76,17 +85,27 @@ for (rep in c(1:10)){
         cum_obs <- cum_obs + curr_ret[(1:nh)+nh,]
 
         # create pseudo label
-        non_req_t <- apply(array(all_thre),1, function(x){(x - abs(pred_t))<=0})
-        mu <- (cum_loss/cum_obs)[non_req_t]
-        pred <- (matrix(rep(pred_t,r_per_h),ncol = r_per_h))[non_req_t]
-        rm_idx <- cum_obs[non_req_t] ==0 
-        pse_y_t <- gen_pseudo_label(pred[!rm_idx],mu[!rm_idx])
+        if(1==0){
+            non_req_t <- apply(array(all_thre),1, function(x){(x - abs(pred_t))<=0})
+            mu <- (cum_loss/cum_obs)[non_req_t]
+            pred <- (matrix(rep(pred_t,r_per_h),ncol = r_per_h))[non_req_t]
+            rm_idx <- cum_obs[non_req_t] ==0 
+            pse_y_t <- gen_pseudo_label(pred[!rm_idx],mu[!rm_idx])
+            pred_loss_pse_t <- loss_func(pred_t, pse_y_t) # prediction loss with pseudo label
+        }
+
+        # perceptron
+        pse_y_t <- ifelse(sum(wt * pred_t)>0,1,-1)
         pred_loss_pse_t <- loss_func(pred_t, pse_y_t) # prediction loss with pseudo label
 
         # use pseudo label to update It if not request
         if (all_thre[r_It] <= abs(pred_t[h_It])) {# not request
             cum_loss[h_It,r_It] <- cum_loss[h_It,r_It] + pred_loss_pse_t[h_It]
             cum_obs[h_It,r_It] <- cum_obs[h_It,r_It] + 1
+        } else{ # requst label
+            if (y_t * pse_y_t < 0){ # wrong prediction
+                wt  <- wt + y_t * pred_t * perc_eta
+            }
         }
 
         cum_loss_alg_0<- cum_loss_alg_0+ loss_func(pse_y_t,y_t,'misclass')
