@@ -27,8 +27,9 @@ loss_func <- function
  y, # label
  loss = c('logistic','misclass')[1]
  ){
-    if (loss == 'logistic'){
-        return (log(1+exp(-y*h)))
+    if (loss == 'logistic'){ # overflow control
+        ret = ifelse(-y*h>50, -y*h, log(1+exp(-y*h)))
+        return (ret)
     } else if (loss == 'misclass'){
         return (as.numeric(y*h<0))
     } else { stop }
