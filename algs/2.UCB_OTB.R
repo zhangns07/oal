@@ -3,19 +3,18 @@
 # Perform online to batch (OTB) by the end.
 library("optparse")
 
-option_list <- list(
-                    make_option(c("-d", "--dataset"), type="character", default=NULL, 
-                                help="dataset file name, one of skin, shuttle, and HTRU_2"),
-                    make_option(c("-c", "--cost"), type="numeric", default=NULL,
-                                help="request cost"),
-                    make_option(c("-a", "--algorithm"), type="character", default=NULL,
-                                help="algoirthm, ucb, ucblcb, ucbfl"),
-                    make_option(c("-o", "--otb"), type="logical", default=TRUE,
-                                help="whether to run online to batch")
-                    ); 
+option_list <- 
+    list(make_option(c("-d", "--dataset"), type="character", default=NULL, 
+                      help="dataset file name, one of skin, shuttle, and HTRU_2"),
+         make_option(c("-c", "--cost"), type="numeric", default=NULL,
+                     help="request cost"),
+         make_option(c("-a", "--algorithm"), type="character", default=NULL,
+                     help="algoirthm, ucb, ucblcb, ucbfl"),
+         make_option(c("-o", "--otb"), type="logical", default=TRUE,
+                     help="whether to run online to batch")); 
 
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
+opt_parser <- OptionParser(option_list=option_list);
+opt <- parse_args(opt_parser);
 
 req_cost <- opt$cost
 dataset <- opt$dataset
@@ -50,8 +49,8 @@ for (rep in c(1:10)){
     set.seed(rep); shuffle <- sample(nrow(X),nrow(X),replace = FALSE)
     shuffle_test <- shuffle[(nT+1):nrow(X)]
 
-    cum_obs <- matrix(0.00001,nrow = nh, ncol = r_per_h) # cumulative obs for (h,r)
-    cum_loss <- matrix(0,nrow = nh, ncol = r_per_h) # cumulative conditional loss for (h,r)
+    cum_obs <- matrix(1e-5, nrow = nh, ncol = r_per_h) # cumulative obs for (h,r)
+    cum_loss <- matrix(1e-5, nrow = nh, ncol = r_per_h) # cumulative conditional loss for (h,r)
 
     cum_loss_misclass <- 0 # cumulative 0/1 error of the prediction for this round
     cum_loss_logistic <- 0 # cumulative logistics error of prediction for this round
@@ -68,17 +67,24 @@ for (rep in c(1:10)){
         curr_ret <- cond_loss_allpairs(all_thre, pred_t, pred_loss_t)
         cum_loss <- cum_loss + curr_ret[1:nh,]
         cum_obs <- cum_obs + curr_ret[(1:nh)+nh,]
-
     }
 
     cum_loss_al <- req_cost * n_warmup
     cum_label <-  n_warmup
 
+
     # start active learning
+    num_experts_tokeep <- nh * r_per_h * 0.1
+    num_orderings <- floor(nT / 100)
+
     RET <- matrix(c(0),ncol = 8) # book keeping
-    OTB <- matrix(c(0),ncol = 2) # book keeping
+    OTB <- matrix(c(0),ncol = 4) # book keeping
     H_IDX <- (matrix(rep(seq_len(nh),r_per_h),ncol = r_per_h))
     R_IDX <- (matrix(rep(seq_along(all_thre),each = nh),ncol = r_per_h))
+    ORDERING <- matrix(c(0), ncol = num_experts_tokeep, nrow = num_orderings)
+    HITS <- rep(0, num_orderings)
+    RITS <- rep(0, num_orderings)
+
     for (i in c((1+n_warmup) : nT)){
         x_t <- X[shuffle[i],]
         y_t <- y[shuffle[i]]
@@ -122,6 +128,18 @@ for (rep in c(1:10)){
         cum_loss_misclass  <- cum_loss_misclass + loss_func(pred_t[h_It],y_t,'misclass')
         cum_loss_logistic  <- cum_loss_logistic + loss_func(pred_t[h_It],y_t)
 
+        if (i %% 100 ==0){
+            cond_mu <- (cum_loss/cum_obs)
+            cond_mu_order <- order(cond_mu)
+            which_best_nonreq <- which(cond_mu_order <= nh)[1]
+            curr_ordering <- cond_mu_order[1:which_best_nonreq]
+            curr_ordering <- c(curr_ordering, rep(0,1500 - length(curr_ordering)))
+            ORDERING[i/100, ] <- curr_ordering
+
+            HITS[i/100] <- h_It
+            RITS[i/100] <- r_It
+        }
+
         if (i %% 1000 ==0){
             cat('i:',i, 
                 ', num of labels:',cum_label,
@@ -130,13 +148,15 @@ for (rep in c(1:10)){
                 ', misclass loss/i:', cum_loss_misclass/i,
                 ', logistic loss/i:', cum_loss_logistic/i,
                 '\n')
-            
-            if (length(h_It)==0){h_It <- 0; }
+
+            if (length(h_It)==0){ h_It <- 0;}
             RET <- rbind(RET,c(i,cum_label, h_It, r_It, UCB[which.min(UCB)],
                                cum_loss_al, cum_loss_misclass, cum_loss_logistic))
 
             if(opt$otb){
-                OTB_curr <- 0
+                OTB1_curr <- 0
+                OTB2_curr <- 0
+                OTB3_curr <- 0
                 cond_mu <- (cum_loss/cum_obs)
 
                 for(j in c(1:ntest)){
@@ -146,15 +166,42 @@ for (rep in c(1:10)){
                     non_req_t <- apply(array(all_thre),1, function(x){(x - abs(pred_t))<=0})
                     pred_nonreq <-  (matrix(rep(pred_t,r_per_h),ncol = r_per_h))[non_req_t] # pred among non-requesters
 
+                    # OTB1: follow awake leader
                     weights <- cond_mu[non_req_t]
-                    OTB_w <- as.numeric(weights == min(weights)) # weights for OTB
+                    OTB1_w <- as.numeric(weights == min(weights)) # weights for OTB
+                    OTB1_curr <- OTB1_curr + loss_func(sum(pred_nonreq * OTB1_w) , y_test, 'misclass')
 
-                    OTB_curr <- OTB_curr + loss_func(sum(pred_nonreq * OTB_w) , y_test, 'misclass')
+                    # OTB2: averaging orderings
+                    avg_pred <- 0
+                    for (k in c(1:floor(i/100))){
+                        curr_ordering <- ORDERING[k,]
+                        curr_h <- which(non_req_t[curr_ordering] == TRUE)[1]
+                        curr_pred <- pred_t[H_IDX[curr_ordering[curr_h]]]
+                        avg_pred <- avg_pred + curr_pred
+                    }
+                    OTB2_curr <- OTB2_curr + loss_func(avg_pred , y_test, 'misclass')
+
+                    # OTB3: averaging past awake experts
+                    avg_pred <- 0
+                    num_awake <- 0
+                    for (k in c(1:floor(i/100))){
+                        h_It <- HITS[k]
+                        r_It <- RITS[k]
+                        if (pred_t[h_It] > all_thre[r_It]){
+                            num_awake <- num_awake + 1
+                            avg_pred <- avg_pred + pred_t[h_It]
+                        }
+                    }
+                    if (num_awake == 0){
+                        OTB3_curr <- OTB3_curr + loss_func(sum(pred_nonreq * OTB1_w) , y_test, 'misclass')
+                    } else {
+                        OTB3_curr <- OTB3_curr + loss_func(avg_pred, y_test, 'misclass')
+                    }
                 }
 
-                OTB <- rbind(OTB,c(i,OTB_curr/ntest))
+                OTB <- rbind(OTB,c(i,OTB1_curr/ntest, OTB2_curr/ntest, OTB3_curr/ntest))
                 cat('i:',i, 
-                    ', OTB:', OTB_curr/ntest,
+                    ', OTB:', OTB1_curr/ntest, OTB2_curr/ntest, OTB3_curr/ntest,
                     '\n')
 
             }
@@ -169,5 +216,4 @@ for (rep in c(1:10)){
         write.table(OTB,filename, sep = ',',col = FALSE,row.names = FALSE)
     }
 }
-
 
